@@ -36,7 +36,6 @@ void listFilesInDir(const char *directory) {
     FindClose(hFind);
 }
 
-
 struct searchInfo {
     char* searchExtensions[MAX_INCLUDE_EXTENSIONS];
     uint16_t searchExtensionsCount;
@@ -53,6 +52,14 @@ void cleanupSearchInfo(struct searchInfo* info) {
     }
 }
 
+void trimNewline(char *line) {
+    size_t len = strlen(line);
+    
+    while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r')) {
+        line[len - 1] = '\0';
+        len--;
+    }
+}
 
 const char *get_filename_ext(const char *filename) {
     const char *dot = strrchr(filename, '.');
@@ -142,15 +149,6 @@ uint64_t getLineCountOfFilesInDirectory(struct searchInfo* info, const char* dir
 
     free(tmp);
     return lineCount;
-}
-
-void trimNewline(char *line) {
-    size_t len = strlen(line);
-    
-    while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r')) {
-        line[len - 1] = '\0';
-        len--;
-    }
 }
 
 void initSearchInfo(struct searchInfo* info, const char* infoFilepath, const char* searchFilePath) {
