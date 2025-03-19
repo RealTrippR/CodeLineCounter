@@ -21,5 +21,8 @@ ecl: lib
 ```
 ### Running the tool from the command line
 Arguments:
--i <info-path>
--s <search-path>
+'''
+counter -i <info-path> -s <search-path>
+'''
+
+If no arguments are provided, it will use the default paths declared at the top of the program.
