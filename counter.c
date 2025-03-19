@@ -1,15 +1,13 @@
 /***********************************************/
-#define SEARCH_PATH PLACEHOLDER
-#define INFO_PATH PLACEHOLDER
-/***********************************************/
-
+#define C_SEARCH_PATH PLACEHOLDER
+#define C_INFO_PATH PLACEHOLDER
 /***********************************************/
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <windows.h>
+#include "tinydir.h"
 
 /***********************************************/
 #define MAX_INCLUDE_EXTENSIONS 256
@@ -17,24 +15,40 @@
 /***********************************************/
 
 void listFilesInDir(const char *directory) {
-    WIN32_FIND_DATA findFileData;
-    HANDLE hFind;
+    struct tinydir_dir dir;
+	if (tinydir_open(&dir, ".") == -1)
+	{
+		perror("Error opening file");
+		goto bail;
+	}
 
-    char searchPath[MAX_PATH];
-    snprintf(searchPath, MAX_PATH, "%s\\*", directory);
+	while (dir.has_next)
+	{
+		struct tinydir_file file;
+		if (tinydir_readfile(&dir, &file) == -1)
+		{
+			perror("Error getting file");
+			goto bail;
+		}
 
-    hFind = FindFirstFile(searchPath, &findFileData);
-    if (hFind == INVALID_HANDLE_VALUE) {
-        printf("No files found in directory: %s\n", directory);
-        return;
-    }
+		printf("%s", file.name);
+		if (file.is_dir)
+		{
+			printf("/");
+		}
+		printf("\n");
 
-    do {
-        printf("%s\n", findFileData.cFileName);
-    } while (FindNextFile(hFind, &findFileData) != 0);
+		if (tinydir_next(&dir) == -1)
+		{
+			perror("Error getting next file");
+			goto bail;
+		}
+	}
 
-    FindClose(hFind);
+bail:
+	tinydir_close(&dir);
 }
+
 
 struct searchInfo {
     char* searchExtensions[MAX_INCLUDE_EXTENSIONS];
@@ -52,6 +66,8 @@ void cleanupSearchInfo(struct searchInfo* info) {
     }
 }
 
+
+// removes newlines and carriage returns from a filepath.
 void trimNewline(char *line) {
     size_t len = strlen(line);
     
@@ -59,6 +75,20 @@ void trimNewline(char *line) {
         line[len - 1] = '\0';
         len--;
     }
+}
+
+// removes quotes from a filepath. Returns a new string
+char* trimQuotes(char *str) {
+    uint8_t len = strlen(str);
+    if (len < 2 || (str[0] == '\"' && str[len-1] == '\"') == false) {
+        return str;
+    }
+    char* trimmedStr = malloc(len - 1);
+    
+    strncpy(trimmedStr, str + 1, len - 2);
+    // Null-terminate
+    trimmedStr[len - 2] = '\0';
+    return trimmedStr;
 }
 
 const char *get_filename_ext(const char *filename) {
@@ -86,36 +116,45 @@ uint32_t getLineCountOfFile(const char* filepath) {
     return lineCount;
 }
 
+
 uint64_t getLineCountOfFilesInDirectory(struct searchInfo* info, const char* dir, uint16_t recursionDepth) 
 {
     const char* originalDir = dir;
     uint64_t lineCount = 0u;
 
-    WIN32_FIND_DATA findFileData;
-    HANDLE hFind;
 
-    char searchPath[MAX_PATH];
-    snprintf(searchPath, MAX_PATH, "%s\\*", dir);
+    struct tinydir_dir tinyDir;
+	if (tinydir_open(&tinyDir, dir) == -1)
+	{
+		perror("Error opening file");
+		goto bail;
+	}
+    
+    char searchPath[256];
+    snprintf(searchPath, 256, "%s/*", dir);
 
-    hFind = FindFirstFile(searchPath, &findFileData);
-    if (hFind == INVALID_HANDLE_VALUE) {
-        // empty directory
-        return 0;
-    }
 
     char* tmp = malloc(256);
     strcpy(tmp,dir);
     dir = tmp;
-    strcat(dir, "\\");
-    do {
+    strcat(dir, "/");
+    while (tinyDir.has_next)
+	{
+        struct tinydir_file fileData;
+		if (tinydir_readfile(&tinyDir, &fileData) == -1)
+		{
+			perror("Error getting file");
+			goto bail;
+		}
+
         
         char absPath[512];
         strcpy(absPath,dir);
-        strcat(absPath,findFileData.cFileName);
-        if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+        strcat(absPath,fileData.name);
+        if (fileData.is_dir) {
         // It's a directory
-            if (strcmp(findFileData.cFileName, ".") == 0 || strcmp(findFileData.cFileName, "..") == 0) {
-                continue;
+            if (strcmp(fileData.name, ".") == 0 || strcmp(fileData.name, "..") == 0) {
+                goto nextFile;
             }
 
             bool cont = false;
@@ -127,7 +166,7 @@ uint64_t getLineCountOfFilesInDirectory(struct searchInfo* info, const char* dir
                 } 
             }
             if (cont) {
-                continue;
+                goto nextFile;
             }
             if (recursionDepth > 0) {
                 lineCount += getLineCountOfFilesInDirectory(info, absPath, recursionDepth - 1);
@@ -143,11 +182,17 @@ uint64_t getLineCountOfFilesInDirectory(struct searchInfo* info, const char* dir
                 }
             }
         }
-    } while (FindNextFile(hFind, &findFileData) != 0);
 
-    FindClose(hFind);
+    nextFile:
+		if (tinydir_next(&tinyDir) == -1)
+		{
+			perror("Error getting next file");
+			goto bail;
+		}
+    }
+bail:
+	tinydir_close(&tinyDir);
 
-    free(tmp);
     return lineCount;
 }
 
@@ -182,10 +227,10 @@ void initSearchInfo(struct searchInfo* info, const char* infoFilepath, const cha
             dirLen = strlen(line) - offset;
             char* dir = malloc(dirLen+searchFilePathLen+strlen("\\")+1);
             strncpy(dir, searchFilePath, searchFilePathLen);
-            strncpy(dir+searchFilePathLen, "\\", strlen("\\"));
-            strncpy(dir+searchFilePathLen+strlen("\\"), line+offset, dirLen);
+            strncpy(dir+searchFilePathLen, "/", strlen("/"));
+            strncpy(dir+searchFilePathLen+strlen("/"), line+offset, dirLen);
             
-            dir[searchFilePathLen+dirLen+strlen("\\")]='\0';
+            dir[searchFilePathLen+dirLen+strlen("/")]='\0';
             info->excludeDirectories[excludeDirCount] = dir; 
             excludeDirCount++;
         }
@@ -194,11 +239,67 @@ void initSearchInfo(struct searchInfo* info, const char* infoFilepath, const cha
     info->excludeDirectoryCount = excludeDirCount;
 }
 
-int main() {
+void printCommandList() {
+    printf(
+        "--help                shows command list\n"
+        "-i <info-path>             set info path\n"
+        "-s <codebase-path>       set search path\n"
+    );
+}
+
+int main(int argc, char* argv[]) {
+    char searchPath[260]; searchPath[259]='\0';
+    char infoPath[260]; infoPath[259]='\0';
+    
+    if (argc>1) {
+        // skip 1, because argc[0] is the name of the executable
+        for (uint8_t i = 1; i < argc; ++i)
+        {
+            if (memcmp(argv[i], "-i", 2)==0) {
+                // first check for invalid input to prevent out of bounds write
+                if (i == argc - 1) {
+                    printf("Invalid input, type -help for instructions\n");
+                    return EXIT_FAILURE;
+                }
+                if (strlen(argv[i + 1])>256) {
+                    printf("ERROR: MAX PATH LENGTH EXCEEDED!\n");
+                    return EXIT_FAILURE;
+                }
+
+                argv[i+1] = trimQuotes(argv[i+1]);
+                memcpy(infoPath, argv[i + 1],256);
+                ++i; // skip the next argument as it is the path
+            }
+            if (memcmp(argv[i], "-s", 2)==0) {
+                // first check for invalid input to prevent out of bounds write
+                if (i == argc-1) {
+                    printf("Invalid input, type -help for instructions\n");
+                    return EXIT_FAILURE;
+                }
+                if (strlen(argv[i+1])>256) {
+                    printf("ERROR: MAX PATH LENGTH EXCEEDED!\n");
+                    return EXIT_FAILURE;
+                }
+
+                argv[i+1] = trimQuotes(argv[i+1]);
+                memcpy(searchPath, argv[i+1],256);
+                ++i; // skip the next argument as it is the path
+            }
+        }
+    }
+    else
+    { // if there are no arguments, use the default values declared at the top of the program
+        memcpy(searchPath,C_SEARCH_PATH,strlen(C_SEARCH_PATH));
+        memcpy(infoPath,C_INFO_PATH,strlen(C_INFO_PATH));
+    }
+
     uint64_t lineCount = 0u;
     struct searchInfo info = {0,0,0,0};
-    initSearchInfo(&info, INFO_PATH, SEARCH_PATH);
-    lineCount = getLineCountOfFilesInDirectory(&info, SEARCH_PATH, 10);
+    initSearchInfo(&info, infoPath, searchPath);
+    lineCount = getLineCountOfFilesInDirectory(&info, searchPath, 10);
+    //listFilesInDir(INFO_PATH);
     printf("LINE COUNT: %d", lineCount);
     cleanupSearchInfo(&info);
+
+    return EXIT_SUCCESS;
 }
