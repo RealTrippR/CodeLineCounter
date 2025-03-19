@@ -3,4 +3,4 @@ ext: h
 ext: cpp
 ext: hpp
 
-ecl: src
+ecl: lib
