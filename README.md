@@ -1,6 +1,6 @@
 # Code Line Counter
 
-A simple C-based utility to count the number of lines of code in the files within a directory and it's subdirectories.
+A simple C-based utility to count the number of lines of code within a directory and it's subdirectories.
 
 To use, set the SEARCH_PATH and INFO_PATH to valid filepaths. Attached below are instructions on how to create a .info file.
 
