@@ -19,3 +19,7 @@ ext: hpp
 // ecl: these are directories to exclude, relative to the SEARCH_PATH
 ecl: lib
 ```
+### Running the tool from the command line
+Arguments:
+-i <info-path>
+-s <search-path>
