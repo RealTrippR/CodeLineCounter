@@ -1,5 +1,4 @@
 /***********************************************/
-
 #define SEARCH_PATH PLACEHOLDER
 #define INFO_PATH PLACEHOLDER
 /***********************************************/
