@@ -1,6 +1,15 @@
+/***********************************************/
+
+#define SEARCH_PATH PLACEHOLDER
+#define INFO_PATH PLACEHOLDER
+/***********************************************/
+
+/***********************************************/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <windows.h>
 
 /***********************************************/
@@ -73,6 +82,7 @@ uint32_t getLineCountOfFile(const char* filepath) {
 
 uint64_t getLineCountOfFilesInDirectory(struct searchInfo* info, const char* dir, uint16_t recursionDepth) 
 {
+    const char* originalDir = dir;
     uint64_t lineCount = 0u;
 
     WIN32_FIND_DATA findFileData;
@@ -86,6 +96,11 @@ uint64_t getLineCountOfFilesInDirectory(struct searchInfo* info, const char* dir
         // empty directory
         return 0;
     }
+
+    char* tmp = malloc(256);
+    strcpy(tmp,dir);
+    dir = tmp;
+    strcat(dir, "\\");
     do {
         
         char absPath[512];
@@ -93,22 +108,28 @@ uint64_t getLineCountOfFilesInDirectory(struct searchInfo* info, const char* dir
         strcat(absPath,findFileData.cFileName);
         if (findFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
         // It's a directory
-            // Skip current and parent directory ("." and "..")
             if (strcmp(findFileData.cFileName, ".") == 0 || strcmp(findFileData.cFileName, "..") == 0) {
                 continue;
             }
 
-            // search subdirectories until recursionDepth is 0
+            bool cont = false;
+            // compare against exclude directories
+            for (uint16_t i = 0; i < info->excludeDirectoryCount; ++i) {
+                if (strcmp(absPath, info->excludeDirectories[i]) == 0 || strcmp(originalDir, info->excludeDirectories[i]) == 0 ) {
+                    cont = true;
+                    break;
+                } 
+            }
+            if (cont) {
+                continue;
+            }
             if (recursionDepth > 0) {
-                strcat(absPath, "\\");
                 lineCount += getLineCountOfFilesInDirectory(info, absPath, recursionDepth - 1);
             }
         } else {
         // It's a file
             const char* ext = get_filename_ext(absPath);
-            // only read files that have a certain extension
             for (uint16_t i = 0; i < info->searchExtensionsCount; ++i) {
-
                 if (strcmp(ext, info->searchExtensions[i])==0) {
                     lineCount += getLineCountOfFile(absPath);
                     
@@ -120,6 +141,7 @@ uint64_t getLineCountOfFilesInDirectory(struct searchInfo* info, const char* dir
 
     FindClose(hFind);
 
+    free(tmp);
     return lineCount;
 }
 
@@ -132,11 +154,14 @@ void trimNewline(char *line) {
     }
 }
 
-void initSearchInfo(struct searchInfo* info, const char* infoFilepath) {
+void initSearchInfo(struct searchInfo* info, const char* infoFilepath, const char* searchFilePath) {
     FILE* fptr;
     fptr = fopen(infoFilepath, "r");
 
-    uint16_t includeExtCount=0;
+    uint16_t includeExtCount=0u;
+    uint16_t excludeDirCount=0u;
+
+    uint16_t searchFilePathLen = strlen(searchFilePath);
 
     char line[64];
     while (fgets(line, sizeof(line), fptr) != NULL) {
@@ -147,23 +172,36 @@ void initSearchInfo(struct searchInfo* info, const char* infoFilepath) {
         if (strncmp(line, "ext: ", offset) == 0) {
             uint8_t extLength = strlen(line) - offset;
             trimNewline(line);
+            extLength = strlen(line) - offset;
             char* ext = malloc(extLength+1);
             strncpy(ext,line+offset, extLength);
             ext[extLength]='\0';
             info->searchExtensions[includeExtCount] = ext; 
             includeExtCount++;
         }
+        if (strncmp(line, "ecl: ", offset) == 0) {
+            uint8_t dirLen = strlen(line) - offset;
+            trimNewline(line);
+            dirLen = strlen(line) - offset;
+            char* dir = malloc(dirLen+searchFilePathLen+strlen("\\")+1);
+            strncpy(dir, searchFilePath, searchFilePathLen);
+            strncpy(dir+searchFilePathLen, "\\", strlen("\\"));
+            strncpy(dir+searchFilePathLen+strlen("\\"), line+offset, dirLen);
+            
+            dir[searchFilePathLen+dirLen+strlen("\\")]='\0';
+            info->excludeDirectories[excludeDirCount] = dir; 
+            excludeDirCount++;
+        }
     }
     info->searchExtensionsCount = includeExtCount;
+    info->excludeDirectoryCount = excludeDirCount;
 }
 
 int main() {
     uint64_t lineCount = 0u;
     struct searchInfo info = {0,0,0,0};
-    initSearchInfo(&info, "C:\\Users\\TrippR\\OneDrive\\Documents\\REPOS\\CodeLineCounter\\.info");
-    const char* dir = "E:\\Graphics Programming\\Repos\\VAL\\VAL\\";
-
-    lineCount = getLineCountOfFilesInDirectory(&info, dir, 10);
+    initSearchInfo(&info, INFO_PATH, SEARCH_PATH);
+    lineCount = getLineCountOfFilesInDirectory(&info, SEARCH_PATH, 10);
     printf("LINE COUNT: %d", lineCount);
     cleanupSearchInfo(&info);
 }
