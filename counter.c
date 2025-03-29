@@ -248,6 +248,8 @@ void printCommandList() {
 }
 
 int main(int argc, char* argv[]) {
+
+    printf("Copyright © Tripp Robins, 2025 | Attribution-NonCommercial 4.0 International\n");
     char searchPath[260]; searchPath[259]='\0';
     char infoPath[260]; infoPath[259]='\0';
     
