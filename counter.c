@@ -1,7 +1,6 @@
 /***********************************************/
-//#define C_SEARCH_PATH "C:/Users/TrippR/OneDrive/Documents/REPOS/VAL/VAL"
-#define C_SEARCH_PATH "C:/Users/TrippR/OneDrive/Documents/CompSci/Open-forum"
-#define C_INFO_PATH "C:/Users/TrippR/OneDrive/Documents/REPOS/CodeLineCounter/.info"
+#define C_SEARCH_PATH "C:/Users/dir"
+#define C_INFO_PATH "C:/Users/info_file_dir"
 /***********************************************/
 
 #include <stdlib.h>
@@ -252,9 +251,68 @@ void initSearchInfo(struct searchInfo* info, const char* infoFilepath, const cha
         }
     }
     info->searchExtensionsCount = includeExtCount;
+    info->excludeDirectoryCount = excludeDirCount;
 }
 
-int main() {
+void printCommandList() {
+    printf(
+        "--help                shows command list\n"
+        "-i <info-path>             set info path\n"
+        "-s <codebase-path>       set search path\n"
+    );
+}
+
+int main(int argc, char* argv[]) {
+
+    printf("Copyright © Tripp Robins, 2025 | Attribution-NonCommercial 4.0 International\n");
+    char searchPath[260]; searchPath[259]='\0';
+    char infoPath[260]; infoPath[259]='\0';
+    
+    if (argc>1) {
+        // skip 1, because argc[0] is the name of the executable
+        for (uint8_t i = 1; i < argc; ++i)
+        {
+            if (memcmp(argv[i], "-i", 2)==0) {
+                // first check for invalid input to prevent out of bounds write
+                if (i == argc - 1) {
+                    printf("Invalid input, type -help for instructions\n");
+                    return EXIT_FAILURE;
+                }
+                if (strlen(argv[i + 1])>256) {
+                    printf("ERROR: MAX PATH LENGTH EXCEEDED!\n");
+                    return EXIT_FAILURE;
+                }
+
+                argv[i+1] = trimQuotes(argv[i+1]);
+                memcpy(infoPath, argv[i + 1],256);
+                ++i; // skip the next argument as it is the path
+            }
+            if (memcmp(argv[i], "-s", 2)==0) {
+                // first check for invalid input to prevent out of bounds write
+                if (i == argc-1) {
+                    printf("Invalid input, type -help for instructions\n");
+                    return EXIT_FAILURE;
+                }
+                if (strlen(argv[i+1])>256) {
+                    printf("ERROR: MAX PATH LENGTH EXCEEDED!\n");
+                    return EXIT_FAILURE;
+                }
+
+                argv[i+1] = trimQuotes(argv[i+1]);
+                memcpy(searchPath, argv[i+1],256);
+                ++i; // skip the next argument as it is the path
+            }
+        }
+    }
+    else
+    { // if there are no arguments, use the default values declared at the top of the program
+        char* searchPathTMP = replaceBackSlashWithForwardSlash(C_SEARCH_PATH);
+        char* infoPathTMP = replaceBackSlashWithForwardSlash(C_INFO_PATH);
+
+        memcpy(searchPath,searchPathTMP,strlen(searchPathTMP));
+        memcpy(infoPath,infoPathTMP,strlen(infoPathTMP));
+    }
+
     uint64_t lineCount = 0u;
     struct searchInfo info = {0,0,0,0};
     initSearchInfo(&info, infoPath, searchPath);
