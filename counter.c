@@ -1,6 +1,7 @@
 /***********************************************/
-#define C_SEARCH_PATH PLACEHOLDER
-#define C_INFO_PATH PLACEHOLDER
+//#define C_SEARCH_PATH "C:/Users/TrippR/OneDrive/Documents/REPOS/VAL/VAL"
+#define C_SEARCH_PATH "C:/Users/TrippR/OneDrive/Documents/CompSci/Open-forum"
+#define C_INFO_PATH "C:/Users/TrippR/OneDrive/Documents/REPOS/CodeLineCounter/.info"
 /***********************************************/
 
 #include <stdlib.h>
@@ -13,6 +14,19 @@
 #define MAX_INCLUDE_EXTENSIONS 256
 #define MAX_EXCLUDE_DIRECTORIES 256
 /***********************************************/
+
+// returns a new string
+char* replaceBackSlashWithForwardSlash(const char* str) {
+    const uint32_t len = strlen(str);
+    char* newStr = malloc(len + 1);
+    newStr = strcpy(newStr, str);
+    for (uint32_t i = 0; i < len; ++i) {
+        printf("%c",str[i]);
+        if (newStr[i]=='\\') {newStr[i]='/';}
+    }
+    printf("\n");
+    return newStr;
+}
 
 void listFilesInDir(const char *directory) {
     struct tinydir_dir dir;
@@ -112,6 +126,8 @@ uint32_t getLineCountOfFile(const char* filepath) {
             lineCount++;
         }
     }
+
+    fclose(file);
 
     return lineCount;
 }
@@ -236,65 +252,9 @@ void initSearchInfo(struct searchInfo* info, const char* infoFilepath, const cha
         }
     }
     info->searchExtensionsCount = includeExtCount;
-    info->excludeDirectoryCount = excludeDirCount;
 }
 
-void printCommandList() {
-    printf(
-        "--help                shows command list\n"
-        "-i <info-path>             set info path\n"
-        "-s <codebase-path>       set search path\n"
-    );
-}
-
-int main(int argc, char* argv[]) {
-
-    printf("Copyright © Tripp Robins, 2025 | Attribution-NonCommercial 4.0 International\n");
-    char searchPath[260]; searchPath[259]='\0';
-    char infoPath[260]; infoPath[259]='\0';
-    
-    if (argc>1) {
-        // skip 1, because argc[0] is the name of the executable
-        for (uint8_t i = 1; i < argc; ++i)
-        {
-            if (memcmp(argv[i], "-i", 2)==0) {
-                // first check for invalid input to prevent out of bounds write
-                if (i == argc - 1) {
-                    printf("Invalid input, type -help for instructions\n");
-                    return EXIT_FAILURE;
-                }
-                if (strlen(argv[i + 1])>256) {
-                    printf("ERROR: MAX PATH LENGTH EXCEEDED!\n");
-                    return EXIT_FAILURE;
-                }
-
-                argv[i+1] = trimQuotes(argv[i+1]);
-                memcpy(infoPath, argv[i + 1],256);
-                ++i; // skip the next argument as it is the path
-            }
-            if (memcmp(argv[i], "-s", 2)==0) {
-                // first check for invalid input to prevent out of bounds write
-                if (i == argc-1) {
-                    printf("Invalid input, type -help for instructions\n");
-                    return EXIT_FAILURE;
-                }
-                if (strlen(argv[i+1])>256) {
-                    printf("ERROR: MAX PATH LENGTH EXCEEDED!\n");
-                    return EXIT_FAILURE;
-                }
-
-                argv[i+1] = trimQuotes(argv[i+1]);
-                memcpy(searchPath, argv[i+1],256);
-                ++i; // skip the next argument as it is the path
-            }
-        }
-    }
-    else
-    { // if there are no arguments, use the default values declared at the top of the program
-        memcpy(searchPath,C_SEARCH_PATH,strlen(C_SEARCH_PATH));
-        memcpy(infoPath,C_INFO_PATH,strlen(C_INFO_PATH));
-    }
-
+int main() {
     uint64_t lineCount = 0u;
     struct searchInfo info = {0,0,0,0};
     initSearchInfo(&info, infoPath, searchPath);
