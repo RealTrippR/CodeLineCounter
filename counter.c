@@ -310,8 +310,8 @@ int main(int argc, char* argv[]) {
         char* searchPathTMP = replaceBackSlashWithForwardSlash(C_SEARCH_PATH);
         char* infoPathTMP = replaceBackSlashWithForwardSlash(C_INFO_PATH);
 
-        memcpy(searchPath,searchPathTMP,strlen(searchPathTMP));
-        memcpy(infoPath,infoPathTMP,strlen(infoPathTMP));
+        strcpy(searchPath,searchPathTMP);
+        strcpy(infoPath,infoPathTMP);
     }
 
     uint64_t lineCount = 0u;
