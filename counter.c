@@ -214,7 +214,8 @@ bail:
 void initSearchInfo(struct searchInfo* info, const char* infoFilepath, const char* searchFilePath) {
     FILE* fptr;
     fptr = fopen(infoFilepath, "r");
-
+    if (!fptr) {printf("Failed to open .info file"); exit(EXIT_FAILURE);}
+	
     uint16_t includeExtCount=0u;
     uint16_t excludeDirCount=0u;
 
